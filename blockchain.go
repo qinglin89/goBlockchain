@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"strconv"
+	"strings"
 	"sync"
 
 	//  "fmt"
@@ -28,12 +29,20 @@ type Block struct {
   BPM int
   Hash string
   PrevHash string
+  Nonce string
+  Difficulty int
 }
 
+var difficulty int = 1
 var Blockchain []Block
 
+func isHashValid(hash string, difficulty int) bool {
+	prefix := strings.Repeat("0", difficulty)
+	return strings.HasPrefix(hash, prefix)
+}
+
 func calculateHash(block Block) string{
-  record := string(block.Index) + block.Timestamp + string(block.BPM) + block.PrevHash
+  record := string(block.Index) + block.Timestamp + string(block.BPM) + block.PrevHash + block.Nonce
   h := sha256.New()
   h.Write([]byte(record))
   hashed := h.Sum(nil)
@@ -48,7 +57,22 @@ func generateBlock(oldBlock Block, BPM int) (Block, error) {
   newBlock.BPM = BPM
   newBlock.PrevHash = oldBlock.Hash
   newBlock.Hash = calculateHash(newBlock)
+  newBlock.Difficulty = difficulty
 
+  for i := 0; ; i ++ {
+  	hex := fmt.Sprintf("%x", i)
+  	newBlock.Nonce = hex
+  	if !isHashValid(calculateHash(newBlock), newBlock.Difficulty) {
+  		fmt.Println(calculateHash(newBlock), "do more work!")
+  		time.Sleep(time.Second)
+  		continue
+	} else {
+		fmt.Println(calculateHash(newBlock), "work done!")
+		newBlock.Hash = calculateHash(newBlock)
+		log.Println(calculateHash(newBlock))
+		break
+	}
+  }
   return newBlock, nil
 }
 
@@ -210,7 +234,7 @@ func main() {
 
   go func() {
     t := time.Now()
-    genesisBlock := Block{0, t.String(), 0, "", ""}
+    genesisBlock := Block{0, t.String(), 0, "", "", "", 1}
     spew.Dump(genesisBlock)
     Blockchain = append(Blockchain, genesisBlock)
   }()
